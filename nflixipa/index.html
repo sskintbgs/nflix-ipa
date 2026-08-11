@@ -1751,19 +1751,10 @@ body.has-mini-player .view {
                 <div style="color:var(--muted);font-size:.85rem">Loading player...</div>
               </div>
             </div>
-            <iframe onload="console.log('Iframe ONLOAD fired!')" onerror="console.error('Iframe ONERROR fired!')" id="player-frame"
-              src="${esc(embedUrl)}"
-              title="Watch ${esc(title)}"
-              allowfullscreen
-              webkitallowfullscreen
-              mozallowfullscreen
-              playsinline
-              webkit-playsinline
-              allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-              scrolling="no"
-              frameborder="0"
-              referrerpolicy="no-referrer"
-            ></iframe>
+            <div id="player-frame" style="position:absolute;inset:0;width:100%;height:100%;background:#000;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1rem;">
+              <button id="player-launch-btn" onclick="(function(u){var b=document.createElement('div');b.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;z-index:99998;background:#000;';var f=document.createElement('iframe');f.style.cssText='position:absolute;inset:0;width:100%;height:100%;border:0;background:#000;';f.src=u;f.allow='autoplay; fullscreen; encrypted-media; picture-in-picture';f.setAttribute('allowfullscreen','true');f.setAttribute('webkitallowfullscreen','true');f.setAttribute('playsinline','true');f.setAttribute('webkit-playsinline','true');var c=document.createElement('button');c.innerHTML='&#x2715; Close';c.style.cssText='position:absolute;top:env(safe-area-inset-top,12px);left:12px;z-index:99999;background:rgba(0,0,0,0.8);color:white;border:none;padding:10px 16px;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;';c.onclick=function(){document.body.removeChild(b);};b.appendChild(f);b.appendChild(c);document.body.appendChild(b);}('${esc(embedUrl)}')" style="background:#e50914;color:white;border:none;padding:1rem 2.5rem;border-radius:10px;font-size:1.2rem;font-weight:700;cursor:pointer;">&#9654;&nbsp; Play</button>
+              <div style="color:#888;font-size:0.85rem;">Tap to launch the player</div>
+            </div>
             <div class="player-chrome" id="player-chrome">
               <button type="button" class="player-ctrl" id="player-fullscreen" aria-label="Fullscreen">${PLAYER_ICONS.expand}</button>
               <div class="player-title" id="player-title">${esc(title)}</div>
