@@ -705,13 +705,12 @@
       frame.id = 'player-frame';
       frame.src = meta.embed;
       frame.title = `Watch ${meta.title || ''}`;
-      frame.allow = 'autoplay *; fullscreen *; encrypted-media *; picture-in-picture *; web-share *; accelerometer *; gyroscope *';
+      frame.allow = 'autoplay; fullscreen; encrypted-media; picture-in-picture';
       frame.setAttribute('allowfullscreen', 'true');
       frame.setAttribute('webkitallowfullscreen', 'true');
       frame.setAttribute('playsinline', 'true');
       frame.setAttribute('webkit-playsinline', 'true');
       frame.setAttribute('referrerpolicy', 'no-referrer');
-      frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-presentation allow-top-navigation-by-user-activation allow-popups allow-modals');
       host.appendChild(frame);
 
       clearTimeout(player.loadTimer);
