@@ -1,0 +1,101 @@
+workflows:
+  ios-unsigned-check:
+    name: iPhone unsigned compile check
+    instance_type: mac_mini_m2
+    max_build_duration: 120
+
+    environment:
+      node: latest
+      xcode: latest
+
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+          source: true
+
+    scripts:
+      - name: Show build tool versions
+        script: |
+          node --version
+          npm --version
+          xcodebuild -version
+
+      - name: Install npm dependencies
+        script: |
+          cd nflixipa
+          npm ci
+
+      - name: Prepare Capacitor iOS project
+        script: |
+          cd nflixipa
+          npm run sync:ios
+
+      - name: Build iPhone app without signing
+        script: |
+          cd nflixipa
+          xcodebuild \
+            -project ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build/ios \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+    artifacts:
+      - nflixipa/build/ios/Build/Products/Release-iphoneos/*.app
+      - /tmp/xcodebuild_logs/*.log
+
+  ios-signed-release:
+    name: iPhone signed release IPA
+    instance_type: mac_mini_m2
+    max_build_duration: 120
+
+    integrations:
+      app_store_connect: codemagic
+
+    environment:
+      node: latest
+      xcode: latest
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.sskin.nflixipa
+
+    scripts:
+      - name: Show build tool versions
+        script: |
+          node --version
+          npm --version
+          xcodebuild -version
+
+      - name: Install npm dependencies
+        script: |
+          cd nflixipa
+          npm ci
+
+      - name: Prepare Capacitor iOS project
+        script: |
+          cd nflixipa
+          npm run sync:ios
+
+      - name: Initialize keychain
+        script: keychain initialize
+
+      - name: Apply iOS signing profiles
+        script: |
+          cd nflixipa
+          xcode-project use-profiles --project ios/App/App.xcodeproj
+
+      - name: Build signed IPA
+        script: |
+          cd nflixipa
+          xcode-project build-ipa \
+            --project ios/App/App.xcodeproj \
+            --scheme App
+
+    artifacts:
+      - nflixipa/build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log

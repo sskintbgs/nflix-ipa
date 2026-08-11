@@ -1,0 +1,12 @@
+{
+  "appId": "com.sskin.nflixipa",
+  "appName": "Nflix",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "automatic",
+    "scheme": "Nflix"
+  },
+  "server": {
+    "iosScheme": "https"
+  }
+}
