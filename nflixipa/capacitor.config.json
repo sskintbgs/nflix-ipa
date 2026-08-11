@@ -4,9 +4,29 @@
   "webDir": "www",
   "ios": {
     "contentInset": "automatic",
-    "scheme": "Nflix"
+    "scheme": "Nflix",
+    "allowsInlineMediaPlayback": true,
+    "allowsAirPlayForMediaPlayback": true,
+    "allowsPictureInPictureMediaPlayback": true,
+    "mediaTypesRequiringUserActionForPlayback": "none",
+    "scrollEnabled": false,
+    "limitsNavigationsToAppBoundDomains": false
   },
   "server": {
-    "iosScheme": "https"
+    "iosScheme": "https",
+    "allowNavigation": [
+      "*.nflixmovies.app",
+      "*.themoviedb.org",
+      "*.image.tmdb.org",
+      "*.vidrift.in",
+      "*.vidsrc.to",
+      "*.vidsrc.xyz",
+      "*.vidfast.me",
+      "*.bingr.one",
+      "*.cinesrc.st",
+      "*.vares.top",
+      "*.multiembed.mov",
+      "*.2embed.cc"
+    ]
   }
 }
