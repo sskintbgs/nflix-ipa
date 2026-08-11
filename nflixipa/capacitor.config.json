@@ -14,19 +14,9 @@
   },
   "server": {
     "iosScheme": "https",
+    "cleartext": true,
     "allowNavigation": [
-      "*.nflixmovies.app",
-      "*.themoviedb.org",
-      "*.image.tmdb.org",
-      "*.vidrift.in",
-      "*.vidsrc.to",
-      "*.vidsrc.xyz",
-      "*.vidfast.me",
-      "*.bingr.one",
-      "*.cinesrc.st",
-      "*.vares.top",
-      "*.multiembed.mov",
-      "*.2embed.cc"
+      "*"
     ]
   }
 }
