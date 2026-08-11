@@ -1,22 +1,22 @@
 {
-  "appId": "com.sskin.nflixipa",
-  "appName": "Nflix",
-  "webDir": "www",
-  "ios": {
-    "contentInset": "automatic",
-    "scheme": "Nflix",
-    "allowsInlineMediaPlayback": true,
-    "allowsAirPlayForMediaPlayback": true,
-    "allowsPictureInPictureMediaPlayback": true,
-    "mediaTypesRequiringUserActionForPlayback": "none",
-    "scrollEnabled": false,
-    "limitsNavigationsToAppBoundDomains": false
-  },
-  "server": {
-    "iosScheme": "https",
-    "cleartext": true,
-    "allowNavigation": [
-      "*"
-    ]
-  }
+	"appId": "com.sskin.nflixipa",
+	"appName": "Nflix",
+	"webDir": "www",
+	"ios": {
+		"contentInset": "automatic",
+		"allowsInlineMediaPlayback": true,
+		"allowsAirPlayForMediaPlayback": true,
+		"allowsPictureInPictureMediaPlayback": true,
+		"mediaTypesRequiringUserActionForPlayback": "none",
+		"scrollEnabled": false,
+		"limitsNavigationsToAppBoundDomains": false
+	},
+	"server": {
+		"iosScheme": "https",
+		"cleartext": true,
+		"allowNavigation": [
+			"*"
+		]
+	},
+	"packageClassList": []
 }
