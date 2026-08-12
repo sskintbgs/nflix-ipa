@@ -1,23 +1,22 @@
 {
-	"appId": "com.sskin.nflixipa",
-	"appName": "Nflix",
-	"webDir": "www",
-	"ios": {
-		"overrideUserAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1",
-		"contentInset": "automatic",
-		"allowsInlineMediaPlayback": true,
-		"allowsAirPlayForMediaPlayback": true,
-		"allowsPictureInPictureMediaPlayback": true,
-		"mediaTypesRequiringUserActionForPlayback": "none",
-		"scrollEnabled": false,
-		"limitsNavigationsToAppBoundDomains": false
-	},
-	"server": {
-		"iosScheme": "https",
-		"cleartext": true,
-		"allowNavigation": [
-			"*"
-		]
-	},
-	"packageClassList": []
+  "appId": "com.sskin.nflixipa",
+  "appName": "Nflix",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "automatic",
+    "scheme": "Nflix",
+    "allowsInlineMediaPlayback": true,
+    "allowsAirPlayForMediaPlayback": true,
+    "allowsPictureInPictureMediaPlayback": true,
+    "mediaTypesRequiringUserActionForPlayback": "none",
+    "scrollEnabled": false,
+    "limitsNavigationsToAppBoundDomains": false
+  },
+  "server": {
+    "iosScheme": "https",
+    "cleartext": true,
+    "allowNavigation": [
+      "*"
+    ]
+  }
 }

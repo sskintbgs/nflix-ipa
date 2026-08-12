@@ -1,44 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<script>
-    // --- ON-SCREEN DEBUG LOGGER ---
-    window._debugLogs = [];
-    function _addLog(type, args) {
-      try {
-        const msg = Array.from(args).map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
-        window._debugLogs.push('[' + new Date().toLocaleTimeString() + '] [' + type + '] ' + msg);
-        const logBox = document.getElementById('debug-log-box');
-        if (logBox) {
-          logBox.innerHTML = window._debugLogs.join('<br/>');
-          logBox.scrollTop = logBox.scrollHeight;
-        }
-      } catch(e) {}
-    }
-    const _origLog = console.log, _origWarn = console.warn, _origError = console.error;
-    console.log = function() { _addLog('LOG', arguments); _origLog.apply(console, arguments); };
-    console.warn = function() { _addLog('WARN', arguments); _origWarn.apply(console, arguments); };
-    console.error = function() { _addLog('ERR', arguments); _origError.apply(console, arguments); };
-    window.onerror = function(msg, src, lineno, colno, err) { console.error('Exception:', msg, src, lineno, colno); };
-    window.addEventListener('unhandledrejection', function(event) { console.error('Promise Rejection:', event.reason); });
-    
-    document.addEventListener('DOMContentLoaded', function() {
-      const btn = document.createElement('button');
-      btn.innerHTML = 'LOGS';
-      btn.style.cssText = 'position:fixed;top:40px;right:10px;background:red;color:white;padding:5px 10px;border-radius:5px;font-weight:bold;z-index:100000;border:none;cursor:pointer;opacity:0.9;';
-      btn.onclick = function() {
-        const c = document.getElementById('debug-log-container');
-        c.style.display = c.style.display === 'block' ? 'none' : 'block';
-      };
-      document.body.appendChild(btn);
-
-      const container = document.createElement('div');
-      container.id = 'debug-log-container';
-      container.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.95);color:#0f0;font-family:monospace;font-size:11px;z-index:99999;display:none;padding:1rem;padding-top:80px;overflow-y:auto;pointer-events:auto;text-align:left;';
-      container.innerHTML = '<div style="margin-bottom:10px;"><button onclick="window._debugLogs=[]; document.getElementById(\'debug-log-box\').innerHTML=\'\';" style="background:#444;color:#fff;padding:5px 10px;border:none;">Clear</button> <button onclick="document.getElementById(\'debug-log-container\').style.display=\'none\'" style="background:#444;color:#fff;padding:5px 10px;border:none;margin-left:10px;">Close</button></div><div id="debug-log-box"></div>';
-      document.body.appendChild(container);
-    });
-</script>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -1751,10 +1713,20 @@ body.has-mini-player .view {
                 <div style="color:var(--muted);font-size:.85rem">Loading player...</div>
               </div>
             </div>
-            <div id="player-frame" style="position:absolute;inset:0;width:100%;height:100%;background:#000;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1rem;">
-              <button id="player-launch-btn" onclick="(function(u){var b=document.createElement('div');b.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;z-index:99998;background:#000;';var f=document.createElement('iframe');f.style.cssText='position:absolute;inset:0;width:100%;height:100%;border:0;background:#000;';f.src=u;f.allow='autoplay; fullscreen; encrypted-media; picture-in-picture';f.setAttribute('allowfullscreen','true');f.setAttribute('webkitallowfullscreen','true');f.setAttribute('playsinline','true');f.setAttribute('webkit-playsinline','true');var c=document.createElement('button');c.innerHTML='&#x2715; Close';c.style.cssText='position:absolute;top:env(safe-area-inset-top,12px);left:12px;z-index:99999;background:rgba(0,0,0,0.8);color:white;border:none;padding:10px 16px;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;';c.onclick=function(){document.body.removeChild(b);};b.appendChild(f);b.appendChild(c);document.body.appendChild(b);}('${esc(embedUrl)}')" style="background:#e50914;color:white;border:none;padding:1rem 2.5rem;border-radius:10px;font-size:1.2rem;font-weight:700;cursor:pointer;">&#9654;&nbsp; Play</button>
-              <div style="color:#888;font-size:0.85rem;">Tap to launch the player</div>
-            </div>
+            <iframe
+              id="player-frame"
+              src="${esc(embedUrl)}"
+              title="Watch ${esc(title)}"
+              allowfullscreen
+              webkitallowfullscreen
+              mozallowfullscreen
+              playsinline
+              webkit-playsinline
+              allow="autoplay; fullscreen; encrypted-media; picture-in-picture; web-share; xr-spatial-tracking"
+              scrolling="no"
+              frameborder="0"
+              referrerpolicy="origin"
+            ></iframe>
             <div class="player-chrome" id="player-chrome">
               <button type="button" class="player-ctrl" id="player-fullscreen" aria-label="Fullscreen">${PLAYER_ICONS.expand}</button>
               <div class="player-title" id="player-title">${esc(title)}</div>
@@ -2028,6 +2000,3 @@ body.has-mini-player .view {
 </script>
 </body>
 </html>
-
-
-

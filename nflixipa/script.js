@@ -1,34 +1,3 @@
-// --- ON-SCREEN DEBUG LOGGER ---
-window._debugLogs = [];
-function _addLog(type, args) {
-  try {
-    const msg = Array.from(args).map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
-    window._debugLogs.push('[' + new Date().toLocaleTimeString() + '] [' + type + '] ' + msg);
-    const box = document.getElementById('debug-log-box');
-    if (box) { box.innerHTML = window._debugLogs.join('<br/>'); box.scrollTop = box.scrollHeight; }
-  } catch(e) {}
-}
-const _origLog = console.log, _origWarn = console.warn, _origError = console.error;
-console.log = function() { _addLog('LOG', arguments); _origLog.apply(console, arguments); };
-console.warn = function() { _addLog('WARN', arguments); _origWarn.apply(console, arguments); };
-console.error = function() { _addLog('ERR', arguments); _origError.apply(console, arguments); };
-window.onerror = function(msg, src, lineno, colno, err) { console.error('Exception:', msg, src, lineno, colno); };
-window.addEventListener('unhandledrejection', function(event) { console.error('Promise Rejection:', event.reason); });
-document.addEventListener('DOMContentLoaded', () => {
-  const container = document.createElement('div');
-  container.id = 'debug-log-container';
-  container.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);color:#0f0;font-family:monospace;font-size:11px;z-index:99999;display:none;padding:1rem;padding-top:50px;overflow-y:auto;pointer-events:auto;';
-  container.innerHTML = '<div style=""margin-bottom:10px;""><button onclick=""window._debugLogs=[]; document.getElementById(''debug-log-box'').innerHTML='''';"">Clear Logs</button> <button onclick=""document.getElementById(''debug-log-container'').style.display=''none''"">Close</button></div><div id=""debug-log-box""></div>';
-  document.body.appendChild(container);
-  
-  const btn = document.createElement('button');
-  btn.innerText = 'LOGS';
-  btn.style.cssText = 'position:fixed;top:10px;right:10px;background:red;color:white;padding:5px 10px;border-radius:5px;font-weight:bold;z-index:100000;border:none;cursor:pointer;opacity:0.7;';
-  btn.onclick = () => { container.style.display = container.style.display === 'block' ? 'none' : 'block'; };
-  document.body.appendChild(btn);
-});
-// --- END DEBUG LOGGER ---
-
 /* ===========================================================
    Nflix - iCodeWin / iOS app
    Paste index.html + styles.css + this script.js into
@@ -736,13 +705,14 @@ document.addEventListener('DOMContentLoaded', () => {
       frame.id = 'player-frame';
       frame.src = meta.embed;
       frame.title = `Watch ${meta.title || ''}`;
-      frame.allow = 'autoplay; fullscreen; encrypted-media; picture-in-picture';
+      frame.allow = 'autoplay *; fullscreen *; encrypted-media *; picture-in-picture *; web-share *; accelerometer *; gyroscope *';
       frame.setAttribute('allowfullscreen', 'true');
       frame.setAttribute('webkitallowfullscreen', 'true');
       frame.setAttribute('playsinline', 'true');
       frame.setAttribute('webkit-playsinline', 'true');
       frame.setAttribute('referrerpolicy', 'no-referrer');
-      console.log('Appending iframe to DOM'); frame.onload = function() { console.log('Iframe ONLOAD fired!'); }; frame.onerror = function(e) { console.error('Iframe ONERROR fired!', e); }; host.appendChild(frame);
+      frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-presentation allow-top-navigation-by-user-activation allow-popups allow-modals');
+      host.appendChild(frame);
 
       clearTimeout(player.loadTimer);
       player.loadTimer = setTimeout(() => showPlayerError(), 45000);
@@ -1797,5 +1767,3 @@ document.addEventListener('DOMContentLoaded', () => {
     navigate('home');
   });
 })();
-
-
