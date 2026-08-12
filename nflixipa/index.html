@@ -381,6 +381,11 @@ body.player-fullscreen {
   overflow: hidden;
 }
 
+body.player-fullscreen #view,
+body.has-mini-player #view {
+  transform: none !important;
+}
+
 body.player-fullscreen .topbar,
 body.player-fullscreen .tabbar {
   opacity: 0;
@@ -500,7 +505,7 @@ body.has-mini-player .view {
   stroke: none;
 }
 
-.player-wrap.is-fullscreen .player-tap-overlay {
+.player-wrap.is-fullscreen.is-playing .player-tap-overlay {
   display: none;
 }
 
@@ -1021,8 +1026,6 @@ const playerState = {
     document.body.classList.toggle('has-mini-player', mode === 'mini');
 
     if (mode === 'inline') {
-      const container = $('#player-container');
-      if (container && wrap.parentNode !== container) container.prepend(wrap);
       wrap.style.left = '';
       wrap.style.top = '';
       wrap.style.right = '';
@@ -1033,8 +1036,6 @@ const playerState = {
       clearTimeout(playerState.hintTimer);
       return;
     }
-
-    if (wrap.parentNode !== document.body) document.body.appendChild(wrap);
 
     if (mode === 'fullscreen') {
       wrap.style.left = '';
@@ -1076,7 +1077,7 @@ const playerState = {
 
   function closeFloatingPlayer() {
     const wrap = $('#player-wrap');
-    if (wrap && wrap.parentNode === document.body) wrap.remove();
+    if (wrap) wrap.remove();
     document.body.classList.remove('player-fullscreen', 'has-mini-player');
     playerState.mode = 'inline';
     playerState.wrap = null;
@@ -1103,6 +1104,7 @@ const playerState = {
     const skel = $('#player-skel');
     if (skel) { skel.style.display = ''; skel.style.opacity = '1'; }
     if (tap) tap.style.display = 'none';
+    wrap.classList.add('is-playing');
 
     const iframe = document.createElement('iframe');
     iframe.src = url;
@@ -1224,7 +1226,11 @@ const launchIfNeeded = () => {
     if (full) full.onclick = (e) => { e.stopPropagation(); launchIfNeeded(); setPlayerMode('fullscreen'); };
     if (mini) mini.onclick = (e) => { e.stopPropagation(); launchIfNeeded(); setPlayerMode('mini'); toast('Mini player'); };
     if (direct) direct.onclick = (e) => { e.stopPropagation(); openDirectPlayer($('#player-frame')?.querySelector('iframe')?.src); };
-    if (close) close.onclick = (e) => { e.stopPropagation(); closeFloatingPlayer(); };
+    if (close) close.onclick = (e) => {
+      e.stopPropagation();
+      if (wrap.parentNode === document.body) closeFloatingPlayer();
+      else setPlayerMode('inline');
+    };
 
     let start = null;
     const point = (e) => (e.touches ? e.touches[0] : e);
