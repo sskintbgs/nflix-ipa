@@ -1093,7 +1093,49 @@ const playerState = {
     }
   }
 
+  // ── Main player entry point ─────────────────────────────────────────────
+  // On iOS Capacitor: opens in SFSafariViewController (real Safari, no cross-origin issues)
+  // On desktop/browser: opens in new tab, falls back to iframe
   function launchPlayer(url, title) {
+    if (!url) return;
+
+    // Try our custom native plugin first (NflixBrowserPlugin.swift → SFSafariViewController)
+    const NflixBrowser = window?.Capacitor?.Plugins?.NflixBrowser;
+    if (NflixBrowser) {
+      NflixBrowser.open({ url }).catch(err => {
+        console.warn('[Player] NflixBrowser.open failed:', err);
+        _openWithOfficialPlugin(url);
+      });
+      return;
+    }
+
+    _openWithOfficialPlugin(url);
+  }
+
+  function _openWithOfficialPlugin(url) {
+    // Fallback to official @capacitor/browser plugin
+    const BrowserPlugin = window?.Capacitor?.Plugins?.Browser;
+    if (BrowserPlugin) {
+      BrowserPlugin.open({
+        url: url,
+        presentationStyle: 'fullscreen',
+        toolbarColor: '#080808'
+      }).catch(err => {
+        console.warn('[Player] Browser.open failed, trying new tab:', err);
+        const opened = window.open(url, '_blank', 'noopener,noreferrer');
+        if (!opened) _launchIframe(url);
+      });
+      return;
+    }
+
+    // Web / PC fallback — new tab or iframe
+    const opened = window.open(url, '_blank', 'noopener,noreferrer');
+    if (!opened) _launchIframe(url);
+  }
+
+
+  // Iframe fallback — desktop/browser only
+  function _launchIframe(url) {
     const wrap = $('#player-wrap');
     const frame = $('#player-frame');
     const tap = $('#player-tap-overlay');
