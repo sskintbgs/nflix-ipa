@@ -496,11 +496,8 @@ body.has-mini-player .view {
 .player-tap-overlay svg {
   width: 17px;
   height: 17px;
-  stroke: currentColor;
-  fill: none;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  fill: currentColor;
+  stroke: none;
 }
 
 .player-wrap.is-fullscreen .player-tap-overlay {
@@ -836,12 +833,16 @@ body.has-mini-player .view {
 
   let route = { name: 'home' };
   let searchOpen = false;
-  const playerState = {
+const playerState = {
     mode: 'inline',
     wrap: null,
     chromeTimer: null,
     hintTimer: null,
     drag: null,
+    loadTimer: null,
+    loaded: false,
+    embedUrl: null,
+    onSwitchSource: null,
   };
 
   const $ = (sel, root = document) => root.querySelector(sel);
@@ -992,6 +993,7 @@ body.has-mini-player .view {
     plus: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
     check: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l5 5L19 7"/></svg>',
     heart: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-7-9.2A4.2 4.2 0 0 1 12 7.5a4.2 4.2 0 0 1 7 3.3C19 15.6 12 20 12 20z"/></svg>',
+    play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>',
     back: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>',
   };
 
@@ -1090,6 +1092,81 @@ body.has-mini-player .view {
     }
   }
 
+  function launchPlayer(url, title) {
+    const wrap = $('#player-wrap');
+    const frame = $('#player-frame');
+    const tap = $('#player-tap-overlay');
+    if (!wrap || !frame || !url || !wrap.isConnected) return;
+    if (frame.querySelector('iframe')) return;
+
+    $('.player-error', wrap)?.remove();
+    const skel = $('#player-skel');
+    if (skel) { skel.style.display = ''; skel.style.opacity = '1'; }
+    if (tap) tap.style.display = 'none';
+
+    const iframe = document.createElement('iframe');
+    iframe.src = url;
+    iframe.allow = 'autoplay; fullscreen; encrypted-media; picture-in-picture';
+    iframe.setAttribute('allowfullscreen', 'true');
+    iframe.setAttribute('webkitallowfullscreen', 'true');
+    iframe.setAttribute('playsinline', 'true');
+    iframe.setAttribute('webkit-playsinline', 'true');
+    iframe.setAttribute('referrerpolicy', 'no-referrer');
+    iframe.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;background:#000;';
+    frame.appendChild(iframe);
+
+    clearTimeout(playerState.loadTimer);
+    playerState.loaded = false;
+    playerState.loadTimer = setTimeout(() => {
+      if (!playerState.loaded && frame.querySelector('iframe')) showPlayerError();
+    }, 30000);
+
+    iframe.addEventListener('load', () => {
+      playerState.loaded = true;
+      clearTimeout(playerState.loadTimer);
+      const skel2 = $('#player-skel');
+      if (skel2) {
+        skel2.style.opacity = '0';
+        skel2.style.transition = 'opacity .4s ease';
+        setTimeout(() => skel2.remove(), 400);
+      }
+    });
+    iframe.addEventListener('error', () => {
+      clearTimeout(playerState.loadTimer);
+      showPlayerError();
+    });
+  }
+
+  function showPlayerError() {
+    const wrap = $('#player-wrap');
+    const frame = $('#player-frame');
+    const tap = $('#player-tap-overlay');
+    if (!wrap || !wrap.isConnected || $('.player-error', wrap)) return;
+    const skel = $('#player-skel');
+    if (skel) skel.remove();
+    const url = frame?.dataset.embedUrl || playerState.embedUrl || '';
+    const err = document.createElement('div');
+    err.className = 'player-error';
+    err.innerHTML = `
+      <h3>Playback unavailable</h3>
+      <p>The player could not load. Try again, switch server, or open it in Safari.</p>
+      <div class="btn-row" style="justify-content:center">
+        <button type="button" class="btn primary" id="err-retry">Retry</button>
+        <button type="button" class="btn ghost" id="err-safari">Open in Safari</button>
+        <button type="button" class="btn ghost" id="try-next-src">Try Next Server</button>
+      </div>`;
+    wrap.appendChild(err);
+    if (tap) tap.style.display = 'grid';
+
+    const retry = $('#err-retry', err);
+    if (retry) retry.onclick = () => { err.remove(); launchPlayer(url, ''); };
+    const safari = $('#err-safari', err);
+    if (safari) safari.onclick = () => openDirectPlayer(url);
+    const next = $('#try-next-src', err);
+    if (next) next.onclick = () => { if (playerState.onSwitchSource) playerState.onSwitchSource(); };
+    bindOpenButtons(err);
+  }
+
   function keepMiniPlayerOnScreen() {
     const wrap = $('#player-wrap');
     if (!wrap || playerState.mode !== 'mini') return;
@@ -1137,10 +1214,16 @@ body.has-mini-player .view {
     const titleEl = $('#player-title', wrap);
     if (titleEl) titleEl.textContent = title || 'Now playing';
 
-    if (tap) tap.onclick = () => setPlayerMode('fullscreen');
-    if (full) full.onclick = (e) => { e.stopPropagation(); setPlayerMode('fullscreen'); };
-    if (mini) mini.onclick = (e) => { e.stopPropagation(); setPlayerMode('mini'); toast('Mini player'); };
-    if (direct) direct.onclick = (e) => { e.stopPropagation(); openDirectPlayer($('#player-frame')?.src); };
+const launchIfNeeded = () => {
+      const frame = $('#player-frame');
+      if (!frame || !playerState.embedUrl) return;
+      if (!frame.querySelector('iframe')) launchPlayer(playerState.embedUrl, title);
+    };
+
+    if (tap) tap.onclick = () => { launchIfNeeded(); setPlayerMode('fullscreen'); };
+    if (full) full.onclick = (e) => { e.stopPropagation(); launchIfNeeded(); setPlayerMode('fullscreen'); };
+    if (mini) mini.onclick = (e) => { e.stopPropagation(); launchIfNeeded(); setPlayerMode('mini'); toast('Mini player'); };
+    if (direct) direct.onclick = (e) => { e.stopPropagation(); openDirectPlayer($('#player-frame')?.querySelector('iframe')?.src); };
     if (close) close.onclick = (e) => { e.stopPropagation(); closeFloatingPlayer(); };
 
     let start = null;
@@ -1699,7 +1782,6 @@ body.has-mini-player .view {
       const cw = readJson(KEYS.continueWatching, []);
 
       function buildPlayerHtml(srcIdx) {
-        const embedUrl = buildEmbedUrl(type, id, season, episode, srcIdx);
         const sourceTabsHtml = CONFIG.embedSources.map((s,i) =>
           `<button type="button" class="source-tab ${i===srcIdx?'is-active':''}" data-src="${i}">${esc(s.label)}</button>`
         ).join('');
@@ -1713,20 +1795,7 @@ body.has-mini-player .view {
                 <div style="color:var(--muted);font-size:.85rem">Loading player...</div>
               </div>
             </div>
-            <iframe
-              id="player-frame"
-              src="${esc(embedUrl)}"
-              title="Watch ${esc(title)}"
-              allowfullscreen
-              webkitallowfullscreen
-              mozallowfullscreen
-              playsinline
-              webkit-playsinline
-              allow="autoplay; fullscreen; encrypted-media; picture-in-picture; web-share; xr-spatial-tracking"
-              scrolling="no"
-              frameborder="0"
-              referrerpolicy="origin"
-            ></iframe>
+            <div id="player-frame" style="position:absolute;inset:0;width:100%;height:100%;background:#000;"></div>
             <div class="player-chrome" id="player-chrome">
               <button type="button" class="player-ctrl" id="player-fullscreen" aria-label="Fullscreen">${PLAYER_ICONS.expand}</button>
               <div class="player-title" id="player-title">${esc(title)}</div>
@@ -1734,8 +1803,8 @@ body.has-mini-player .view {
               <button type="button" class="player-ctrl" id="player-direct" aria-label="Open direct player">${PLAYER_ICONS.external}</button>
               <button type="button" class="player-ctrl" id="player-close" aria-label="Close player">${PLAYER_ICONS.close}</button>
             </div>
-            <button type="button" class="player-tap-overlay" id="player-tap-overlay" aria-label="Open fullscreen">
-              <span>${PLAYER_ICONS.expand} Fullscreen</span>
+            <button type="button" class="player-tap-overlay" id="player-tap-overlay" aria-label="Play">
+              <span>${PLAYER_ICONS.play} Tap to Play</span>
             </button>
             <div class="player-swipe-zone" id="player-swipe-zone" aria-hidden="true"></div>
             <div class="player-hint">Swipe up for mini player</div>
@@ -1808,7 +1877,7 @@ body.has-mini-player .view {
         bindPlayerEvents();
       }
 
-      function bindPlayerEvents() {
+function bindPlayerEvents() {
         // Source switching
         $$('.source-tab').forEach(btn => {
           btn.onclick = () => {
@@ -1818,41 +1887,18 @@ body.has-mini-player .view {
         });
 
         const frame = $('#player-frame');
-        const skel = $('#player-skel');
         const wrap = $('#player-wrap');
+        if (!frame || !wrap) return;
 
-        if (!frame) return;
-        bindMobilePlayerControls(title);
-
-        const showError = () => {
-          if (skel) skel.remove();
-          if ($('.player-error', wrap)) return;
-          const err = document.createElement('div');
-          err.className = 'player-error';
-          err.innerHTML = `
-            <h3>Playback unavailable</h3>
-            <p>Try a different server or check your connection.</p>
-            <div class="btn-row" style="justify-content:center">
-              <button type="button" class="btn primary" id="try-next-src">Try Next Server</button>
-              <button type="button" class="btn ghost" data-open-details="${type}:${id}">Back to Details</button>
-            </div>`;
-          wrap.appendChild(err);
-          const nextBtn = $('#try-next-src');
-          if (nextBtn) {
-            nextBtn.onclick = () => {
-              currentSourceIdx = (currentSourceIdx + 1) % CONFIG.embedSources.length;
-              rebindPlayer();
-            };
-          }
-          bindOpenButtons(err);
+        const embedUrl = buildEmbedUrl(type, id, season, episode, currentSourceIdx);
+        frame.dataset.embedUrl = embedUrl;
+        playerState.embedUrl = embedUrl;
+        playerState.onSwitchSource = () => {
+          currentSourceIdx = (currentSourceIdx + 1) % CONFIG.embedSources.length;
+          rebindPlayer();
         };
 
-        const loadTimer = setTimeout(showError, 30000);
-        frame.addEventListener('load', () => {
-          clearTimeout(loadTimer);
-          if (skel) { skel.style.opacity = '0'; skel.style.transition = 'opacity .4s ease'; setTimeout(() => skel.remove(), 400); }
-        });
-        frame.addEventListener('error', () => { clearTimeout(loadTimer); showError(); });
+        bindMobilePlayerControls(title);
       }
 
       bindPlayerEvents();
@@ -2000,3 +2046,6 @@ body.has-mini-player .view {
 </script>
 </body>
 </html>
+
+
+
