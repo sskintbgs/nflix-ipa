@@ -84,6 +84,7 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
   transition: opacity 0.15s, transform 0.15s;
   -webkit-touch-callout: none;
 }
+.nav-logo span { color: #fff; letter-spacing: 2px; margin-left: 1px; }
 .nav-logo:active { opacity: 0.75; transform: scale(0.96); }
 .nav-right { display: flex; align-items: center; gap: 0.35rem; margin-left: auto; }
 .nav-icon-btn {
@@ -824,6 +825,32 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
   .detail-poster { width: 110px; }
   .top10-rank { font-size: 5.5rem; }
 }
+
+body.theater #navbar { display: none; }
+body.theater #mobile-nav { display: none; }
+body.theater #view { padding-bottom: calc(var(--safe-bot) + 1rem); min-height: 100dvh; }
+
+#av-overlay {
+  position: fixed; inset: 0; z-index: 900;
+  background: #000;
+  display: none; flex-direction: column;
+}
+#av-overlay.open { display: flex; }
+#av-overlay video {
+  flex: 1; width: 100%; height: 100%;
+  background: #000; object-fit: contain;
+}
+#av-close {
+  position: absolute; top: calc(var(--safe-top) + 0.7rem); left: 4%; z-index: 2;
+  background: rgba(0,0,0,0.55); color: #fff;
+  border-radius: 6px; padding: 0.45rem 0.8rem;
+  font-size: 0.85rem; font-weight: 600;
+}
+#av-status {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
+  color: var(--text-muted); font-size: 0.9rem; text-align: center;
+  pointer-events: none;
+}
 </style>
 </head>
 <body>
@@ -831,7 +858,7 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
   <!-- TOP NAV -->
   <header id="navbar">
     <div class="navbar-inner">
-      <button type="button" class="nav-logo" id="nav-logo" aria-label="Home">FLUXTV</button>
+      <button type="button" class="nav-logo" id="nav-logo" aria-label="Home">FLUX<span>TV</span></button>
       <div class="nav-right">
         <button type="button" class="nav-icon-btn" id="btn-search" aria-label="Search">
           <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -937,6 +964,11 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
   </div>
 </div>
 <div id="toast"></div>
+<div id="av-overlay">
+  <button type="button" id="av-close">Close</button>
+  <div id="av-status">Loading stream…</div>
+  <video id="av-video" playsinline webkit-playsinline controls autoplay></video>
+</div>
 
 <script>
 (function () {
@@ -1157,32 +1189,84 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
     return '';
   }
 
-  async function fetchMint(type, id, season, episode) {
+  async function fetchMint(type, id, season, episode, title) {
     const q = new URLSearchParams({ id: String(id), type });
     if (type === 'tv') {
       q.set('season', String(season || 1));
       q.set('episode', String(episode || 1));
     }
+    if (title) q.set('title', title);
     const res = await fetch(`${CONFIG.apiBase}/api/mint-direct/api/v1/play?${q}`, {
-      headers: { Accept: 'application/json' },
+      headers: { Accept: 'application/json', Referer: `${CONFIG.apiBase}/` },
     });
     if (!res.ok) throw new Error(`Stream lookup failed (${res.status})`);
     const data = await res.json();
-    if (!data.ok) throw new Error(data.error || data.message || 'No stream available');
+    if (data.ok === false) throw new Error(data.error || data.message || 'No stream available');
     return data;
   }
 
-  async function launchPlayer({ type, id, season, episode, title, posterPath }) {
-    const Player = window?.Capacitor?.Plugins?.NflixPlayer;
-    if (!Player) {
-      toast('Native player unavailable — rebuild the iOS app');
-      return false;
+  function closeHtml5Player() {
+    const overlay = $('#av-overlay');
+    const video = $('#av-video');
+    if (video) {
+      try { video.pause(); } catch {}
+      video.removeAttribute('src');
+      video.load();
     }
+    overlay?.classList.remove('open');
+    const st = $('#av-status');
+    if (st) st.textContent = 'Loading stream…';
+  }
+
+  function openHtml5Player(url, startAt) {
+    const overlay = $('#av-overlay');
+    const video = $('#av-video');
+    const status = $('#av-status');
+    if (!overlay || !video) throw new Error('Player overlay missing');
+    overlay.classList.add('open');
+    if (status) status.textContent = 'Loading stream…';
+    video.src = url;
+    video.currentTime = 0;
+    const onReady = () => {
+      if (status) status.textContent = '';
+      if (startAt > 0.5) video.currentTime = startAt;
+      const play = video.play();
+      if (play && play.catch) play.catch(() => {});
+    };
+    video.onloadedmetadata = onReady;
+    video.onerror = () => {
+      if (status) status.textContent = 'Stream failed to load';
+    };
+    video.load();
+    const play = video.play();
+    if (play && play.catch) play.catch(() => {});
+  }
+
+  async function launchPlayer({ type, id, season, episode, title, posterPath }) {
     const startAt = Number(getProgress(type, id, season, episode)?.progress || 0);
-    const data = await fetchMint(type, id, season, episode);
+    const Native = window?.Capacitor?.Plugins?.NflixPlayer;
+    if (Native && typeof Native.play === 'function') {
+      await Native.play({
+        type,
+        id: Number(id),
+        season: Number(season || 1),
+        episode: Number(episode || 1),
+        title: title || CONFIG.brand,
+        startAt,
+      });
+      recordWatch({
+        contentId: id, mediaType: type,
+        season: type === 'tv' ? season : undefined,
+        episode: type === 'tv' ? episode : undefined,
+        progress: startAt, title, posterPath,
+      });
+      return true;
+    }
+
+    const data = await fetchMint(type, id, season, episode, title);
     const url = pickAvPlayerUrl(data);
-    if (!url) throw new Error('No AVPlayer-compatible stream (need HLS or MP4)');
-    await Player.play({ url, title: title || CONFIG.brand, startAt });
+    if (!url) throw new Error('No HLS or MP4 stream from mint');
+    openHtml5Player(url, startAt);
     recordWatch({
       contentId: id, mediaType: type,
       season: type === 'tv' ? season : undefined,
@@ -1892,9 +1976,9 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
     void v.offsetWidth;
     v.classList.add('page-enter');
 
-    // Hide topbar brand clutter on detail/watch — navbar still present for logo
-    const hideNavSolid = route.name === 'details' || route.name === 'watch';
-    if (!hideNavSolid) $('#navbar').classList.toggle('scrolled', window.scrollY > 40);
+    const cinema = route.name === 'details' || route.name === 'watch';
+    document.body.classList.toggle('theater', cinema);
+    if (!cinema) $('#navbar').classList.toggle('scrolled', window.scrollY > 40);
 
     switch (route.name) {
       case 'home': await renderHome(); break;
@@ -2038,8 +2122,10 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
     });
 
     window.addEventListener('scroll', () => {
+      if (document.body.classList.contains('theater')) return;
       $('#navbar').classList.toggle('scrolled', window.scrollY > 40);
     }, { passive: true });
+    $('#av-close')?.addEventListener('click', closeHtml5Player);
   }
 
   async function runSearch(q) {

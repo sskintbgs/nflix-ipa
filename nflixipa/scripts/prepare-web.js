@@ -15,4 +15,16 @@ for (const file of files) {
   }
 }
 
+const capSrc = path.join(root, "capacitor.config.json");
+const capDest = path.join(root, "ios", "App", "App", "capacitor.config.json");
+if (fs.existsSync(capSrc)) {
+  fs.mkdirSync(path.dirname(capDest), { recursive: true });
+  fs.copyFileSync(capSrc, capDest);
+}
+
+const publicDir = path.join(root, "ios", "App", "App", "public");
+if (fs.existsSync(publicDir)) {
+  fs.copyFileSync(path.join(outDir, "index.html"), path.join(publicDir, "index.html"));
+}
+
 console.log(`Prepared ${files.length} web files in ${outDir}`);

@@ -5,6 +5,12 @@ import WebKit
 // Custom WebView controller that disables iOS ITP (Intelligent Tracking Prevention)
 // which was blocking the embed player iframe from accessing cookies and storage
 class NflixBridgeViewController: CAPBridgeViewController {
+    private let playerPlugin = NflixPlayerPlugin()
+
+    override func capacitorDidLoad() {
+        bridge?.registerPluginInstance(playerPlugin)
+    }
+
     override func webViewConfiguration(for instanceConfiguration: InstanceConfiguration) -> WKWebViewConfiguration {
         let config = super.webViewConfiguration(for: instanceConfiguration)
 
