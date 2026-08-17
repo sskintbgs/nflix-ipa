@@ -45,7 +45,17 @@ workflows:
             CODE_SIGNING_ALLOWED=NO \
             build
 
+      - name: Package unsigned IPA for sideloading
+        script: |
+          cd nflixipa
+          mkdir -p build/ios/Payload
+          cp -r build/ios/Build/Products/Release-iphoneos/App.app build/ios/Payload/
+          cd build/ios
+          zip -r -y -q Nflix-unsigned.ipa Payload
+          rm -rf Payload
+
     artifacts:
+      - nflixipa/build/ios/Nflix-unsigned.ipa
       - nflixipa/build/ios/Build/Products/Release-iphoneos/*.app
       - /tmp/xcodebuild_logs/*.log
 

@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="theme-color" content="#E50914" />
-<title>Nflix</title>
+<title>FluxTV</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -831,7 +831,7 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
   <!-- TOP NAV -->
   <header id="navbar">
     <div class="navbar-inner">
-      <button type="button" class="nav-logo" id="nav-logo" aria-label="Home">NFLIX</button>
+      <button type="button" class="nav-logo" id="nav-logo" aria-label="Home">FLUXTV</button>
       <div class="nav-right">
         <button type="button" class="nav-icon-btn" id="btn-search" aria-label="Search">
           <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -943,12 +943,12 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
   'use strict';
 
   const CONFIG = {
-    brand: 'Nflix',
+    brand: 'FluxTV',
     playerColor: 'E50914',
     tmdbToken: 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJlMmVkNGM4YjU5NjM1YzBhNGMwZWVkNWI0MmU0ZDY1ZiIsIm5iZiI6MTc4NjQ2ODY3MS41NzIsInN1YiI6IjZhN2I1OTNmYTRiNWU3OTk0ZjRjMWQ1NiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.vW6UjKn9Jw9MVd0izakQI6563F7FdANOoJwjvpbWuhA',
     tmdbBase: 'https://api.themoviedb.org/3',
     imageBase: 'https://image.tmdb.org/t/p',
-    embedBase: 'https://nflixmovies.app/embed',
+    apiBase: 'https://nflixmovies.app',
   };
 
   const KEYS = {
@@ -1115,32 +1115,81 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
     });
   }
 
-  // ── Player ───────────────────────────────────────────────────────────────
-  function buildEmbedUrl(type, id, season, episode) {
-    const p = new URLSearchParams();
-    p.set('brand', CONFIG.brand.slice(0, 24));
-    p.set('color', CONFIG.playerColor);
-    p.set('autoPlay', 'true');
-    const startAt = Number(getProgress(type, id, season, episode)?.progress || 0);
-    if (startAt > 0) p.set('progress', String(Math.floor(startAt)));
-    if (type === 'movie') return `${CONFIG.embedBase}/movie/${id}?${p}`;
-    return `${CONFIG.embedBase}/tv/${id}/${season}/${episode}?${p}`;
+  // ── Player (native AVPlayer) ─────────────────────────────────────────────
+  function isMp4Url(u) {
+    const s = String(u || '');
+    return /\.mp4(\?|$)/i.test(s) && !/\.mpd(\?|$)/i.test(s);
+  }
+  function isHlsUrl(u) {
+    return /\.m3u8(\?|$)/i.test(String(u || ''));
+  }
+  function signedSource(s) {
+    if (!s || typeof s !== 'object') return '';
+    if (isMp4Url(s.progressiveUrl)) return String(s.progressiveUrl);
+    return String(s.playlistPath || s.hlsUrl || s.directUrl || s.url || s.upstream || '');
+  }
+  function providerKey(s) {
+    return String(s?.provider || s?.label || '').toLowerCase();
+  }
+  function pickAvPlayerUrl(data) {
+    const menu = data.menuSources || data.sources || [];
+    for (const s of menu) {
+      const u = signedSource(s);
+      const p = providerKey(s);
+      if ((p.includes('dulo') || p.includes('delta')) && isHlsUrl(u)) return u;
+    }
+    for (const s of menu) {
+      const u = signedSource(s);
+      const p = providerKey(s);
+      if ((p.includes('nflix') || /gcdn\.jsdzf/i.test(u)) && isHlsUrl(u)) return u;
+    }
+    for (const s of menu) {
+      if (isMp4Url(s?.progressiveUrl)) return String(s.progressiveUrl);
+      const u = signedSource(s);
+      if (isMp4Url(u)) return u;
+    }
+    for (const s of menu) {
+      const u = signedSource(s);
+      if (isHlsUrl(u)) return u;
+    }
+    const top = String(data.url || data.directUrl || data.hlsUrl || data.progressiveUrl || '');
+    if (isHlsUrl(top) || isMp4Url(top)) return top;
+    return '';
   }
 
-  function launchPlayer(url) {
-    if (!url) return;
-    const NflixBrowser = window?.Capacitor?.Plugins?.NflixBrowser;
-    if (NflixBrowser) { NflixBrowser.open({ url }).catch(() => _openFallback(url)); return; }
-    const BrowserPlugin = window?.Capacitor?.Plugins?.Browser;
-    if (BrowserPlugin) {
-      BrowserPlugin.open({ url, presentationStyle: 'fullscreen', toolbarColor: '#141414' }).catch(() => _openFallback(url));
-      return;
+  async function fetchMint(type, id, season, episode) {
+    const q = new URLSearchParams({ id: String(id), type });
+    if (type === 'tv') {
+      q.set('season', String(season || 1));
+      q.set('episode', String(episode || 1));
     }
-    _openFallback(url);
+    const res = await fetch(`${CONFIG.apiBase}/api/mint-direct/api/v1/play?${q}`, {
+      headers: { Accept: 'application/json' },
+    });
+    if (!res.ok) throw new Error(`Stream lookup failed (${res.status})`);
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || data.message || 'No stream available');
+    return data;
   }
-  function _openFallback(url) {
-    const opened = window.open(url, '_blank', 'noopener,noreferrer');
-    if (!opened) window.location.href = url;
+
+  async function launchPlayer({ type, id, season, episode, title, posterPath }) {
+    const Player = window?.Capacitor?.Plugins?.NflixPlayer;
+    if (!Player) {
+      toast('Native player unavailable — rebuild the iOS app');
+      return false;
+    }
+    const startAt = Number(getProgress(type, id, season, episode)?.progress || 0);
+    const data = await fetchMint(type, id, season, episode);
+    const url = pickAvPlayerUrl(data);
+    if (!url) throw new Error('No AVPlayer-compatible stream (need HLS or MP4)');
+    await Player.play({ url, title: title || CONFIG.brand, startAt });
+    recordWatch({
+      contentId: id, mediaType: type,
+      season: type === 'tv' ? season : undefined,
+      episode: type === 'tv' ? episode : undefined,
+      progress: startAt, title, posterPath,
+    });
+    return true;
   }
 
   // ── Helpers ──────────────────────────────────────────────────────────────
@@ -1297,7 +1346,7 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
       html += `
         <p class="footer-note">
           Data by <a href="https://www.themoviedb.org/" target="_blank" rel="noopener">TMDB</a>
-          · Streaming via NflixMovies
+          · Streaming via FluxTV
         </p>
       </div>`;
 
@@ -1544,7 +1593,7 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
           <div class="settings-label">About</div>
           <div class="settings-row">
             <div>
-              <div class="settings-row-label">Nflix</div>
+              <div class="settings-row-label">FluxTV</div>
               <div class="settings-row-desc">Version 1.0 · Powered by TMDB</div>
             </div>
           </div>
@@ -1651,7 +1700,7 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
       };
       $('#btn-share').onclick = async () => {
         try {
-          if (navigator.share) await navigator.share({ title: item.title, text: `${item.title} on Nflix` });
+          if (navigator.share) await navigator.share({ title: item.title, text: `${item.title} on FluxTV` });
           else { await navigator.clipboard.writeText(item.title); toast('Copied'); }
         } catch {}
       };
@@ -1730,7 +1779,6 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
 
       const bg = img(backdropPath, 'w1280') || img(posterPath, 'w780');
       const poster = img(posterPath, 'w500');
-      const embedUrl = buildEmbedUrl(type, id, season, episode);
       const epLabel = type === 'tv' && currentEp
         ? `S${season} E${episode} — ${currentEp.name || ''}`
         : null;
@@ -1797,16 +1845,23 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
           ${rowHtml('More Like This', [...(similar || []), ...(rec || [])].slice(0, 18))}
         </div>`;
 
-      $('#play-now-btn').onclick = () => {
+      $('#play-now-btn').onclick = async () => {
         const btn = $('#play-now-btn');
         btn.disabled = true;
-        btn.innerHTML = `<div class="spinner sm" style="border-top-color:#000;border-color:rgba(0,0,0,0.15);border-top-color:#000"></div> Opening…`;
-        launchPlayer(embedUrl);
-        setTimeout(() => {
+        btn.innerHTML = `<div class="spinner sm" style="border-top-color:#000;border-color:rgba(0,0,0,0.15);border-top-color:#000"></div> Loading stream…`;
+        try {
+          await launchPlayer({ type, id, season, episode, title, posterPath });
+        } catch (err) {
+          toast(err.message || 'Playback failed');
+        } finally {
           btn.disabled = false;
           btn.innerHTML = `${ICO.play} Play Now`;
-        }, 2000);
+        }
       };
+
+      if (getSettings().autoplay) {
+        setTimeout(() => $('#play-now-btn')?.click(), 350);
+      }
 
       if (summary) {
         $('#w-later').onclick = () => { const on = libraryToggle(KEYS.watchLater, summary); toast(on ? 'Added to My List' : 'Removed'); renderWatch(); };
@@ -2021,12 +2076,12 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
       } catch {}
     }
     if (!localStorage.getItem(KEYS.pushBootstrapped)) {
-      schedulePush(7, 'Nflix — your next binge is waiting');
+      schedulePush(7, 'FluxTV — your next binge is waiting');
       localStorage.setItem(KEYS.pushBootstrapped, '1');
     }
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') {
-        schedulePush(90, 'Come back to Nflix — new trending titles are waiting.');
+        schedulePush(90, 'Come back to FluxTV — new trending titles are waiting.');
       }
     });
   }

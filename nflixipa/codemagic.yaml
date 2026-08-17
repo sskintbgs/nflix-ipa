@@ -41,7 +41,16 @@ workflows:
             CODE_SIGNING_ALLOWED=NO \
             build
 
+      - name: Package unsigned IPA for sideloading
+        script: |
+          mkdir -p build/ios/Payload
+          cp -r build/ios/Build/Products/Release-iphoneos/App.app build/ios/Payload/
+          cd build/ios
+          zip -r -y -q FluxTV-unsigned.ipa Payload
+          rm -rf Payload
+
     artifacts:
+      - build/ios/FluxTV-unsigned.ipa
       - build/ios/Build/Products/Release-iphoneos/*.app
       - /tmp/xcodebuild_logs/*.log
 

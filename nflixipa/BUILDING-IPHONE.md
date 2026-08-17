@@ -1,4 +1,4 @@
-# Building Nflix For iPhone
+# Building FluxTV For iPhone
 
 This project is a web app wrapped with Capacitor so Codemagic can build it as an iPhone app.
 
